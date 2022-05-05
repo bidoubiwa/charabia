@@ -10,17 +10,39 @@ use crate::Token;
 ///
 /// This Normalizer uses [`<UsedLibraryToNormalize>`] internally to normalize the provided token.
 /// <OptionalAdditionnalExplanations>
-pub struct DummyNormalizer;
+pub struct ApostropheNormalizer;
 
 // All normalizers only need to implement the method `normalize` and the method `should_normalize` of the `Normalizer` trait.
-impl Normalizer for DummyNormalizer {
+impl Normalizer for ApostropheNormalizer {
     // Creates an iterator over the normalized version of the provided token.
     fn normalize<'o>(&self, mut token: Token<'o>) -> Box<dyn Iterator<Item = Token<'o>> + 'o> {
         // lowercase the provided token lemma.
-        token.lemma = (*token.lemma).lowercase();
+        token.lemma = Cow::Owned(token.lemma().to_lowercase()); // CHANGED
+        let lemma = token.lemma();
+
+        let mut splits = lemma.split("'");
+
+        let mut char_start = 0;
+
+        let tokens: Vec<_> = std::iter::from_fn(|| {
+            let lemma = splits.next(); // l'avion
+
+            match lemma {
+                Some(x) => {
+                    let mut new_token = token.clone();
+                    new_token.char_start = char_start;
+                    new_token.char_end = x.len();
+                    char_start = new_token.char_end + 1;
+
+                    Some(new_token)
+                }
+                None => None,
+            }
+        })
+        .collect();
 
         // Create an iterator over the normalized token.
-        Box::new(Some(token).into_iter())
+        Box::new(tokens.into_iter())
     }
 
     // Returns `true` if the Normalizer should be used.
@@ -31,8 +53,9 @@ impl Normalizer for DummyNormalizer {
 }
 
 // Include the newly implemented Normalizer in the tokenization pipeline:
-//     - import module by adding `mod dummy;` (filename) in `normalizer/mod.rs`
-//     - Add Normalizer in `NORMALIZERS` in `normalizer/mod.rs`
+//     - change the name of `dummy_example.rs` to `dummy.rs`
+//     - import module by adding `mod dummy;` (filename) in `normalizer/mod.rs` // CHANGED
+//     - Add Normalizer in `NORMALIZERS` in `normalizer/mod.rs` // CHANGED
 //     - check if it didn't break any test or benhchmark
 
 // Test the normalizer:
@@ -46,7 +69,7 @@ mod test {
     fn tokens() -> Vec<Token<'static>> {
         vec![
             Token {
-                lemma: Owned("PascalCase".to_string()),
+                lemma: Owned("l'avion".to_string()),
                 char_end: 10,
                 byte_end: 10,
                 script: Script::Latin,
@@ -67,7 +90,7 @@ mod test {
         vec![
             Token {
                 // lowercased
-                lemma: Owned("pascalcase".to_string()),
+                lemma: Owned("l'avion".to_string()),
                 char_end: 10,
                 byte_end: 10,
                 script: Script::Latin,
@@ -88,14 +111,14 @@ mod test {
     fn normalized_tokens() -> Vec<Token<'static>> {
         vec![
             Token {
-                lemma: Owned("pascalcase".to_string()),
+                lemma: Owned("l'avion".to_string()),
                 char_end: 10,
                 byte_end: 10,
                 script: Script::Latin,
                 ..Default::default()
             },
             Token {
-                lemma: Owned("паскалькейс".to_string()),
+                lemma: Owned("paskal'keis".to_string()),
                 char_end: 11,
                 byte_end: 22,
                 script: Script::Latin,
@@ -104,7 +127,7 @@ mod test {
         ]
     }
 
-    test_normalizer!(DummyNormalizer, tokens(), normalizer_result(), normalized_tokens());
+    test_normalizer!(ApostropheNormalizer, tokens(), normalizer_result(), normalized_tokens());
 }
 
 // Your Normalizer will now be used on texts of the assigned Script and Language. Thank you for your contribution, and congratulation! 🎉

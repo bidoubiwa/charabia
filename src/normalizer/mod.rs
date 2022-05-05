@@ -1,5 +1,6 @@
 use once_cell::sync::Lazy;
 
+use self::apostrophe::ApostropheNormalizer;
 #[cfg(feature = "chinese")]
 use self::chinese::ChineseNormalizer;
 use self::control_char::ControlCharNormalizer;
@@ -8,6 +9,7 @@ use self::lowercase::LowercaseNormalizer;
 use crate::detection::{Language, Script};
 use crate::Token;
 
+mod apostrophe;
 #[cfg(feature = "chinese")]
 mod chinese;
 mod control_char;
@@ -22,6 +24,7 @@ pub static NORMALIZERS: Lazy<Vec<Box<dyn Normalizer>>> = Lazy::new(|| {
         Box::new(ChineseNormalizer),
         Box::new(DeunicodeNormalizer),
         Box::new(ControlCharNormalizer),
+        Box::new(ApostropheNormalizer),
     ]
 });
 
